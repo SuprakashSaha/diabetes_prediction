@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diabetes Progression Prediction</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+    <h1>Diabetes Progression Prediction</h1>
+    <form id="predictionForm">
+        <label for="age">Age:</label>
+        <input type="number" id="age" name="age" required><br><br>
+
+        <label>Sex:</label>
+        <input type="radio" name="sex" value="1"> Male
+        <input type="radio" name="sex" value="0"> Female
+        <br><br>
+
+        <label for="bmi">BODY MASS INDEX:</label>
+        <input type="number" id="bmi" name="bmi" step="0.01" required><br><br>
+
+        <label for="bp">Average Blood Pressure:</label>
+        <input type="number" id="bp" name="bp" step="0.01" required><br><br>
+
+        <label for="s1">Total Serum Cholesterol:</label>
+        <input type="number" id="s1" name="s1" step="0.01" required><br><br>
+
+        <label for="s2">Low-Density Lipoproteins (LDL):</label>
+        <input type="number" id="s2" name="s2" step="0.01" required><br><br>
+
+        <label for="s3">High-Density Lipoproteins (HDL):</label>
+        <input type="number" id="s3" name="s3" step="0.01" required><br><br>
+
+        <label for="s4">TCH / HDL Ratio:</label>
+        <input type="number" id="s4" name="s4" step="0.01" required><br><br>
+
+        <label for="s5">Serum Triglycerides Level:</label>
+        <input type="number" id="s5" name="s5" step="0.01" required><br><br>
+
+        <label for="s6">Blood Sugar Level:</label>
+        <input type="number" id="s6" name="s6" step="0.01" required><br><br>
+
+        <button type="submit" style="background-color: rgb(145, 222, 29);margin-right: 100px;border: none;border-radius: 5px;">Predict</button>
+        <button type="reset" style="background-color: rgb(241, 83, 83);border: none;border-radius: 5px;">Reset</button>
+    </form>
+
+    <h2>Prediction Result:</h2>
+    <p id="result"></p>
+
+    <h2>Prediction History:</h2>
+    <canvas id="progressChart" width="400" height="200"></canvas>
+
+    <script>
+        let predictionHistory = [];
+        let chart;
+
+        document.getElementById('predictionForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            let sexValue = document.querySelector('input[name="sex"]:checked');
+            if (!sexValue) {
+                alert("Please select sex.");
+                return;
+            }
+            sexValue = parseFloat(sexValue.value);
+
+            const features = [
+                parseFloat(document.getElementById('age').value),
+                sexValue,
+                parseFloat(document.getElementById('bmi').value),
+                parseFloat(document.getElementById('bp').value),
+                parseFloat(document.getElementById('s1').value),
+                parseFloat(document.getElementById('s2').value),
+                parseFloat(document.getElementById('s3').value),
+                parseFloat(document.getElementById('s4').value),
+                parseFloat(document.getElementById('s5').value),
+                parseFloat(document.getElementById('s6').value)
+            ];
+
+            fetch('http://127.0.0.1:5000/ridge/predict', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ features: features })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const prediction = data.prediction;
+                document.getElementById('result').innerText = 'Predicted Diabetes Progression: ' + prediction;
+
+                predictionHistory.push(prediction);
+                updateChart();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('result').innerText = 'Error fetching prediction.';
+            });
+        });
+
+        function updateChart() {
+            const ctx = document.getElementById('progressChart').getContext('2d');
+
+            let labels = predictionHistory.map((_, index) => index + 1);
+
+            if (!chart) {
+                chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'Actual Predictions',
+                                data: predictionHistory,
+                                borderColor: 'rgb(75, 192, 192)',
+                                borderWidth: 2,
+                                fill: false
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            x: { title: { display: true, text: 'Predictions Over Time' } },
+                            y: { title: { display: true, text: 'Predicted Value' } }
+                        }
+                    }
+                });
+            } else {
+                chart.data.labels = labels;
+                chart.data.datasets[0].data = predictionHistory;
+                chart.update();
+            }
+        }
+    </script>
+
+
+</body>
+</html>
